@@ -1,0 +1,79 @@
+All delete method must be soft delete
+
+Authentication
+POST api/v1/auth/register
+POST api/v1/auth/login
+POST api/v1/auth/logout
+GET api/v1/auth/refresh
+POST api/v1/auth/forgot-password
+POST api/v1/auth/reset-password
+POST api/v1/auth/change-password
+
+Users
+GET api/v1/users
+GET api/v1/users/:id
+POST api/v1/users
+PATCH api/v1/users/:id
+DELETE api/v1/users/:id
+
+Room
+POST api/v1/rooms
+GET api/v1/rooms
+GET api/v1/rooms/:id
+PATCH api/v1/rooms/:id
+PATCH api/v1/rooms/add-service/:id
+PATCH api/v1/rooms/remove-service/:id
+DELETE api/v1/rooms/:id
+
+Room Type
+POST api/v1/room-types
+GET api/v1/room-types
+GET api/v1/room-types/:id
+PATCH api/v1/room-types/:id
+DELETE api/v1/room-types/:id (delete types -> delete all rooms of that type)
+
+Booking
+POST api/v1/bookings
+GET api/v1/bookings (maybe another endpoint with filter: check-in date, check-out date, status for easily find available rooms)
+GET api/v1/bookings/:id
+PATCH api/v1/bookings/:id
+DELETE api/v1/bookings/:id
+
+Payment (payment method)
+POST api/v1/payments
+GET api/v1/payments
+GET api/v1/payments/:id
+PATCH api/v1/payments/:id
+DELETE api/v1/payments/:id
+
+Receipt
+POST api/v1/receipts
+GET api/v1/receipts
+GET api/v1/receipts/:id
+
+Service
+POST api/v1/services
+GET api/v1/services
+GET api/v1/services/:id
+PATCH api/v1/services/:id
+DELETE api/v1/services/:id
+
+Review
+POST api/v1/reviews
+GET api/v1/reviews
+PATCH api/v1/reviews/:id
+DELETE api/v1/reviews/:id
+
+Report
+GET api/v1/reports/bookings
+GET api/v1/reports/occupancy
+GET api/v1/reports/reviews
+
+GET api/v1/reports/revenue
+
+GET api/v1/reports/customers (retreive customer who booked for month/year)
+
+GET api/v1/reports/export/:report-type
+
+Settings
+GET api/v1/admin/logs
