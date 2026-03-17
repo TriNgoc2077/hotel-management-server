@@ -1,0 +1,49 @@
+import {
+  Injectable,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+} from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { RESPONSE_MESSAGE } from '../decorators/customize';
+
+export interface Response<T> {
+  statusCode: number;
+  message: string;
+  data: any;
+}
+
+@Injectable()
+export class TransformInterceptor<T>
+  implements NestInterceptor<T, Response<T>>
+{
+  constructor(private reflector: Reflector) {}
+  intercept(
+    context: ExecutionContext,
+    next: CallHandler,
+  ): Observable<Response<T>> {
+    const response = context.switchToHttp().getResponse();
+    const request = context.switchToHttp().getRequest();
+
+    const contentType = response.getHeader('Content-Type');
+    //is html ? -> next
+    if (contentType && contentType.toString().includes('text/html')) {
+      return next.handle();
+    }
+    return next.handle().pipe(
+      map((data) => ({
+        success: true,
+        statusCode: context.switchToHttp().getResponse().statusCode,
+        path: request.url,
+        method: request.method,
+        message:
+          this.reflector.get<string>(RESPONSE_MESSAGE, context.getHandler()) ||
+          '',
+        data: data,
+        timestamp: new Date().toISOString(),
+      })),
+    );
+  }
+}

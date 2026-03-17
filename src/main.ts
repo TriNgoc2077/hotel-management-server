@@ -2,17 +2,19 @@ import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { RequestMethod, ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AllExceptionsFilter } from './common/filters/all-exception-filter';
+import { TransformInterceptor } from './common/interceptors/transform-interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const configService = app.get(ConfigService);
 
-  // app.useGlobalFilters(new AllExceptionsFilter());
+  app.useGlobalFilters(new AllExceptionsFilter());
 
-  // const reflector = app.get(Reflector);
+  const reflector = app.get(Reflector);
   // app.useGlobalGuards(new JwtAuthGuard(reflector));
-  // app.useGlobalInterceptors(new TransformInterceptor(reflector));
+  app.useGlobalInterceptors(new TransformInterceptor(reflector));
 
   const allowedOrigins = configService.get<string>('ORIGIN')?.split(',') || [];
   app.enableCors({
