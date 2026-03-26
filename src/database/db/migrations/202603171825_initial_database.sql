@@ -85,7 +85,7 @@ CREATE TABLE `payments` (
   `amount` decimal(10,2),
   `payment_method` varchar(50) COMMENT 'Cash, Credit Card, Bank Transfer',
   `payment_status` varchar(20) COMMENT 'Pending, Completed, Failed',
-  `transaction_id` varchar(100) UNIQUE COMMENT 'Ma giao dich tu SePay',
+  `transaction_id` varchar(100) UNIQUE,
   `created_at` timestamp DEFAULT CURRENT_TIMESTAMP
 );
 

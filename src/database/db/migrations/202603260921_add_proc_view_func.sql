@@ -103,6 +103,7 @@ SELECT
     r.name AS roleName,
     u.full_name AS fullName, 
     u.email, 
+    u.password_hash AS passwordHash,
     u.phone, 
     u.address, 
     u.status, 

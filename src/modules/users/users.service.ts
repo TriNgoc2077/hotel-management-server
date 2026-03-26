@@ -51,9 +51,28 @@ export class UsersService {
     return rows[0];
   }
 
+  async findByEmail(email: string) {
+    const [rows] = await this.pool.query<RowDataPacket[]>('SELECT * FROM v_users WHERE email = ?', [email]);
+    
+    if (rows.length === 0) {
+      throw new NotFoundException(`User with email ${email} not found`);
+    }
+    
+    return rows[0];
+  } 
+
+  async findByRefreshToken(refreshToken: string, agent: string) {
+    const [rows] = await this.pool.query<RowDataPacket[]>('SELECT * FROM v_users WHERE refresh_token = ? AND agent = ?', [refreshToken, agent]);
+    
+    if (rows.length === 0) {
+      throw new NotFoundException(`User with refresh token ${refreshToken} not found or expired`);
+    }
+    
+    return rows[0];
+  } 
+ 
   async update(id: string, updateUserDto: UpdateUserDto) {
     try {
-      // Check if exists
       await this.findOne(id);
       
       await this.pool.query(
@@ -76,6 +95,23 @@ export class UsersService {
        }
        throw new BadRequestException(`Failed to update user: ${error.message}`);
     }
+  }
+
+  async updateRefreshToken(userId: string, refreshToken: string, expiredAt: Date, agent: string) {
+    console.log("updateRefreshToken", userId, refreshToken, expiredAt);
+    await this.pool.query(
+      'CALL sp_update_refresh_token(?, ?, ?, ?)',
+      [userId, refreshToken, expiredAt, agent]
+    );
+    return true;
+  }
+
+  async updateFcmToken(userId: string, fcmToken: string, agent: string) {
+    await this.pool.query(
+      'CALL sp_update_fcm_token(?, ?, ?)',
+      [userId, fcmToken, agent]
+    );
+    return true;
   }
 
   async remove(id: string) {
