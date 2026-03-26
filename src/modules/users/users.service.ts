@@ -3,7 +3,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { v4 as uuidv4 } from 'uuid';
 import type { RowDataPacket, ResultSetHeader, Pool } from 'mysql2/promise';
-import { HashService } from 'src/security/hash.service';
+import { HashService } from 'src/modules/security/hash.service';
 
 @Injectable()
 export class UsersService {
