@@ -1,0 +1,15 @@
+Roles: Admin, Staff, Customer
+
+User Status: Active, Locked
+
+Booking Status: Pending, Confirmed, Checked-in, Checked-out, Cancelled
+
+Room Status: Vacant, Reserved, Occupied, Out_of_Order
+Room Types: Standard, Deluxe, Suite
+
+Service: F&B, Spa, Laundry, Transportation, Other
+Service Status: Available, Unavailable
+
+Payment Status: Pending, Completed, Failed
+Payment Method: Cash, Credit Card, Bank Transfer, Momo
+
