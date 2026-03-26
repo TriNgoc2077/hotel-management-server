@@ -1,4 +1,7 @@
--- procedures
+--========================================
+-- create users, update users procedures
+--========================================
+
 -- DROP PROCEDURE IF EXISTS sp_create_user;
 
 DELIMITER //
@@ -47,8 +50,9 @@ BEGIN
 END //
 DELIMITER ;
 
-
--- View
+--========================================
+-- view bookings, rooms, users
+--========================================
 CREATE OR REPLACE VIEW v_bookings AS
 SELECT 
     b.id,
@@ -108,7 +112,9 @@ FROM users u
 LEFT JOIN roles r ON u.role_id = r.id;
 
 
--- functions
+--========================================
+-- calculate days between 2 dates function
+--========================================
 -- DROP FUNCTION IF EXISTS fn_calculate_days;
 
 DELIMITER //
