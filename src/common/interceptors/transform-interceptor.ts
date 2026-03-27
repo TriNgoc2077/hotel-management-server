@@ -40,7 +40,7 @@ export class TransformInterceptor<T>
         method: request.method,
         message:
           this.reflector.get<string>(RESPONSE_MESSAGE, context.getHandler()) ||
-          '',
+          'Request was successful!',
         data: data,
         timestamp: new Date().toISOString(),
       })),

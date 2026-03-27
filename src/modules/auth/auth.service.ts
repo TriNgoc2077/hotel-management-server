@@ -73,4 +73,18 @@ export class AuthService {
     
     return tokens;
   }
+
+  async logout(userId: string, agent: string, accessToken?: string) {
+    await this.usersService.removeToken(userId, agent);
+    
+    if (accessToken) {
+      const decodedToken = this.jwtService.decode(accessToken) as any;
+      if (decodedToken && decodedToken.exp) {
+        // decodedToken.exp is in seconds, UsersService exp is in milliseconds (Date.now())
+        await this.usersService.blacklistToken(accessToken, decodedToken.exp * 1000);
+      }
+    }
+
+    return true;
+  }
 }

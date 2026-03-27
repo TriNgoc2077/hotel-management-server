@@ -1,3 +1,6 @@
+-- ===============================================
+-- update rt, fcmt, remove token procedures
+-- ===============================================
 DELIMITER //
 
 -- DROP PROCEDURE IF EXISTS sp_update_refresh_token //
@@ -34,6 +37,17 @@ BEGIN
         INSERT INTO tokens (id, user_id, fcm_token, agent)
         VALUES (UUID(), p_user_id, p_fcm_token, p_agent);
     END IF;
+END //
+
+-- DROP PROCEDURE IF EXISTS sp_remove_token //
+CREATE PROCEDURE sp_remove_token(
+    IN p_user_id CHAR(36),
+    IN p_agent VARCHAR(255)
+)
+BEGIN
+    UPDATE tokens 
+    SET fcm_token = NULL, refresh_token = NULL
+    WHERE user_id = p_user_id AND agent = p_agent;
 END //
 
 DELIMITER ;

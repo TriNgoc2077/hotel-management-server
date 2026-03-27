@@ -6,7 +6,4 @@ export class LoginDto {
 
     @IsString()
     password: string;
-
-    @IsString()
-    agent: string;
 }
