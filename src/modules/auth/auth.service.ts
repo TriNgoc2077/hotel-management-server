@@ -43,14 +43,14 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto, agent: string) {
     const user = await this.usersService.findByEmail(loginDto.email);
     const isPasswordMatch = await this.hashService.comparePassword(loginDto.password, user.passwordHash);
     if (!user || !isPasswordMatch) throw new UnauthorizedException('Username or password is incorrect!');
 
     const tokens = await this.getTokens(user.id, loginDto.email, user.role);
-    
-    await this.updateRefreshToken(user.id, tokens.refreshToken, loginDto.agent);
+
+    await this.updateRefreshToken(user.id, tokens.refreshToken, agent);
 
     return tokens;
   }

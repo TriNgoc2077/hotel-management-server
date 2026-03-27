@@ -62,7 +62,7 @@ export class UsersService {
   } 
 
   async findByRefreshToken(refreshToken: string, agent: string) {
-    const [rows] = await this.pool.query<RowDataPacket[]>('SELECT * FROM v_users WHERE refresh_token = ? AND agent = ?', [refreshToken, agent]);
+    const [rows] = await this.pool.query<RowDataPacket[]>('SELECT * FROM tokens WHERE refresh_token = ? AND agent = ?', [refreshToken, agent]);
     
     if (rows.length === 0) {
       throw new NotFoundException(`User with refresh token ${refreshToken} not found or expired`);
@@ -98,7 +98,6 @@ export class UsersService {
   }
 
   async updateRefreshToken(userId: string, refreshToken: string, expiredAt: Date, agent: string) {
-    console.log("updateRefreshToken", userId, refreshToken, expiredAt);
     await this.pool.query(
       'CALL sp_update_refresh_token(?, ?, ?, ?)',
       [userId, refreshToken, expiredAt, agent]
