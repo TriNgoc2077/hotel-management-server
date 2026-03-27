@@ -4,6 +4,9 @@ import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { DatabaseModule } from './database/database.module';
+import { UsersModule } from './modules/users/users.module';
+import { RolesModule } from './modules/roles/roles.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { NotificationModule } from './modules/notification/notification.module';
 
 @Module({
@@ -19,6 +22,9 @@ import { NotificationModule } from './modules/notification/notification.module';
     }),
     ConfigModule.forRoot({ isGlobal: true }),
     DatabaseModule,
+    UsersModule,
+    RolesModule,
+    AuthModule,
     NotificationModule,
   ],
   controllers: [AppController],

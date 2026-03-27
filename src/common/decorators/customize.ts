@@ -1,1 +1,1 @@
-export const RESPONSE_MESSAGE = 'Request was successfully!';
+export const RESPONSE_MESSAGE = 'Request was successful!';
