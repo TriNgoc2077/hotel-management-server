@@ -69,7 +69,9 @@ SELECT
     b.actual_check_out,
     b.total_room_price,
     b.total_service_price,
+    b.discount,
     b.grand_total,
+    b.deposit,
     b.status,
     b.created_at,
     b.updated_at

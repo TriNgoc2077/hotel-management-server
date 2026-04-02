@@ -66,7 +66,8 @@ CREATE PROCEDURE sp_create_booking(
     IN p_check_out DATETIME,
     IN p_room_type_id CHAR(36),
     IN p_room_ids JSON,
-    IN p_services JSON
+    IN p_services JSON,
+    IN p_discount DECIMAL(10,2)
 )
 BEGIN
     DECLARE v_hours_diff DECIMAL(10,2);
@@ -132,6 +133,8 @@ BEGIN
     JOIN rooms r ON r.id = jt.room_id
     JOIN room_types rt ON r.room_type_id = rt.id;
 
+    SET v_total_room_price = v_total_room_price - v_total_room_price * (p_discount / 100);
+
     -- Service Price
     IF p_services IS NOT NULL AND JSON_LENGTH(p_services) > 0 THEN
         SELECT IFNULL(SUM(s.price * jt.quantity), 0)
@@ -150,6 +153,20 @@ BEGIN
     JOIN JSON_TABLE(p_room_ids, '$[*]' COLUMNS(room_id CHAR(36) PATH '$')) jt ON r.id = jt.room_id
     SET r.status = 'Reserved'
     WHERE r.id IN (SELECT jt.room_id FROM JSON_TABLE(p_room_ids, '$[*]' COLUMNS(room_id CHAR(36) PATH '$')) jt);
+
+    -- 6. Insert Main Booking Record
+    INSERT INTO bookings (
+        id, short_id, customer_id, staff_id, 
+        check_in_date, check_out_date, 
+        total_room_price, total_service_price, grand_total, 
+        status, room_type_id
+    )
+    VALUES (
+        p_booking_id, p_short_id, p_customer_id, p_staff_id, 
+        p_check_in, p_check_out, 
+        v_total_room_price, v_total_service_price, v_grand_total, 
+        'Pending', p_room_type_id
+    );
 
     -- Insert Booking Services mapping
     IF p_services IS NOT NULL AND JSON_LENGTH(p_services) > 0 THEN
@@ -173,19 +190,6 @@ BEGIN
         WHERE s.quantity != -1;
     END IF;
 
-    -- 6. Insert Main Booking Record
-    INSERT INTO bookings (
-        id, short_id, customer_id, staff_id, 
-        check_in_date, check_out_date, 
-        total_room_price, total_service_price, grand_total, 
-        status, room_type_id
-    )
-    VALUES (
-        p_booking_id, p_short_id, p_customer_id, p_staff_id, 
-        p_check_in, p_check_out, 
-        v_total_room_price, v_total_service_price, v_grand_total, 
-        'Pending', p_room_type_id
-    );
 
     -- Insert Booking Rooms mapping
     INSERT INTO booking_rooms (id, booking_id, room_id)
@@ -230,17 +234,38 @@ DROP PROCEDURE IF EXISTS sp_update_booking //
 CREATE PROCEDURE sp_update_booking(
     IN p_id CHAR(36),
     IN p_status VARCHAR(20),
-    IN p_check_in DATETIME,
-    IN p_check_out DATETIME,
+    IN p_actual_check_in DATETIME,
+    IN p_actual_check_out DATETIME,
     IN p_total_room_price DECIMAL(10,2),
     IN p_total_service_price DECIMAL(10,2),
     IN p_grand_total DECIMAL(10,2)
 )
 BEGIN
+    IF p_status = 'Checked-in' THEN
+        UPDATE rooms r
+        JOIN booking_rooms br ON r.id = br.room_id
+        SET r.status = 'Occupied'
+        WHERE br.booking_id = p_id;
+    END IF;
+
+    IF p_status IN ('Checked-out', 'Cancelled') THEN
+        UPDATE rooms r
+        JOIN booking_rooms br ON r.id = br.room_id
+        SET r.status = 'Vacant'
+        WHERE br.booking_id = p_id;
+
+        UPDATE services s
+        JOIN booking_services bs ON s.id = bs.service_id
+        SET 
+            s.quantity = s.quantity + bs.quantity,
+            s.status = 'Active'
+        WHERE bs.booking_id = p_id AND s.quantity != -1;
+    END IF;
+    
     UPDATE bookings 
     SET status = IFNULL(p_status, status),
-        check_in_date = IFNULL(p_check_in, check_in_date),
-        check_out_date = IFNULL(p_check_out, check_out_date),
+        actual_check_in = IFNULL(p_actual_check_in, actual_check_in),
+        actual_check_out = IFNULL(p_actual_check_out, actual_check_out),
         total_room_price = IFNULL(p_total_room_price, total_room_price),
         total_service_price = IFNULL(p_total_service_price, total_service_price),
         grand_total = IFNULL(p_grand_total, grand_total)
