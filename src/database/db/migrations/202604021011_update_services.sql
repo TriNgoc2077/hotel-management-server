@@ -1,0 +1,1 @@
+ALTER TABLE `services` ADD COLUMN `quantity` INT DEFAULT -1;
