@@ -10,6 +10,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { SystemLogsModule } from './modules/system-logs/system-logs.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     RolesModule,
     AuthModule,
     SystemLogsModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [
