@@ -1,6 +1,7 @@
 import { Module, Global } from '@nestjs/common';
 import * as mysql from 'mysql2/promise';
 import { ConfigService } from '@nestjs/config';
+import { DatabaseService } from './database.service';
 
 @Global()
 @Module({
@@ -17,11 +18,13 @@ import { ConfigService } from '@nestjs/config';
           waitForConnections: true,
           connectionLimit: 10,
           queueLimit: 0,
+          multipleStatements: true, // bắt buộc cho CALL SP trả nhiều result sets
         });
       },
       inject: [ConfigService],
     },
+    DatabaseService,
   ],
-  exports: ['DATABASE_CONNECTION'],
+  exports: ['DATABASE_CONNECTION', DatabaseService],
 })
 export class DatabaseModule {}

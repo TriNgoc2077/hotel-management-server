@@ -56,25 +56,25 @@ DELIMITER ;
 CREATE OR REPLACE VIEW v_bookings AS
 SELECT 
     b.id,
-    b.short_id,
-    b.customer_id,
-    c.full_name AS customer_name,
-    c.email AS customer_email,
-    c.phone AS customer_phone,
-    b.staff_id,
-    s.full_name AS staff_name,
-    b.check_in_date,
-    b.check_out_date,
-    b.actual_check_in,
-    b.actual_check_out,
-    b.total_room_price,
-    b.total_service_price,
+    b.short_id as shortId,
+    b.customer_id as customerId,
+    c.full_name AS customerName,
+    c.email AS customerEmail,
+    c.phone AS customerPhone,
+    b.staff_id as staffId,
+    s.full_name AS staffName,
+    b.check_in_date as checkInDate,
+    b.check_out_date as checkOutDate,
+    b.actual_check_in as actualCheckIn,
+    b.actual_check_out as actualCheckOut,
+    b.total_room_price as totalRoomPrice,
+    b.total_service_price as totalServicePrice,
     b.discount,
-    b.grand_total,
+    b.grand_total as grantTotal,
     b.deposit,
     b.status,
-    b.created_at,
-    b.updated_at
+    b.created_at as createdAt,
+    b.updated_at as updatedAt
 FROM bookings b
 LEFT JOIN users c ON b.customer_id = c.id
 LEFT JOIN users s ON b.staff_id = s.id;

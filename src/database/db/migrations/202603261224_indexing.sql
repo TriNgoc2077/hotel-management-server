@@ -9,3 +9,6 @@ CREATE INDEX `idx_notifications_user_is_read` ON `notifications` (`user_id`, `is
 
 CREATE INDEX `idx_system_logs_created_at` ON `system_logs` (`created_at`);
 CREATE INDEX `idx_system_logs_user_created` ON `system_logs` (`user_id`, `created_at`);
+CREATE INDEX idx_rooms_room_type_id ON rooms (room_type_id);
+CREATE INDEX idx_bookings_customer_id ON bookings (customer_id);
+CREATE INDEX idx_booking_services_booking_id ON booking_services (booking_id);
