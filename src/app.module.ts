@@ -15,6 +15,7 @@ import { ServicesModule } from './modules/services/services.module';
 import { CheckinModule } from './modules/checkin/checkin.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     BookingsModule,
     ServicesModule,
     CheckinModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [
