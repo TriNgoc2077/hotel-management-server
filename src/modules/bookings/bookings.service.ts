@@ -1,3 +1,4 @@
+// bookings.service.ts
 import {
   Injectable,
   Inject,
@@ -35,19 +36,19 @@ export class BookingsService {
       countParams.push(query.status);
     }
     if (query.customer_id) {
-      countSql += ' AND customer_id = ?';
+      countSql += ' AND customerId = ?';
       countParams.push(query.customer_id);
     }
     if (query.check_in_date) {
-      countSql += ' AND check_in_date >= ?';
+      countSql += ' AND checkInDate >= ?';
       countParams.push(query.check_in_date);
     }
     if (query.check_out_date) {
-      countSql += ' AND check_out_date <= ?';
+      countSql += ' AND checkOutDate <= ?';
       countParams.push(query.check_out_date);
     }
 
-    const [countRows] = await this.db.execute(countSql, countParams);
+    const [countRows] = await this.db.query(countSql, countParams);
     const totalItems = (countRows as RowDataPacket[])[0]?.totalItems ?? 0;
 
     if (totalItems > 0 && offset >= totalItems) {
@@ -57,18 +58,32 @@ export class BookingsService {
       };
     }
 
+    // BUG FIX: build params độc lập, KHÔNG copy từ countParams
+    const params: any[] = [];
     let sql = 'SELECT * FROM v_bookings WHERE 1=1';
-    const params: any[] = [...countParams];
 
-    if (query.status) sql += ' AND status = ?';
-    if (query.customer_id) sql += ' AND customer_id = ?';
-    if (query.check_in_date) sql += ' AND check_in_date >= ?';
-    if (query.check_out_date) sql += ' AND check_out_date <= ?';
+    if (query.status) {
+      sql += ' AND status = ?';
+      params.push(query.status);
+    }
+    if (query.customer_id) {
+      sql += ' AND customerId = ?';
+      params.push(query.customer_id);
+    }
+    if (query.check_in_date) {
+      sql += ' AND checkInDate >= ?';
+      params.push(query.check_in_date);
+    }
+    if (query.check_out_date) {
+      sql += ' AND checkOutDate <= ?';
+      params.push(query.check_out_date);
+    }
 
-    sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+    // BUG FIX: đổi created_at → createdAt (alias trong v_bookings)
+    sql += ' ORDER BY createdAt DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
 
-    const [rows] = await this.db.execute(sql, params);
+    const [rows] = await this.db.query(sql, params);
 
     return {
       meta: { page, limit, totalPages: Math.ceil(totalItems / limit), totalItems },
@@ -94,19 +109,22 @@ export class BookingsService {
     roomTypeId: string,
     checkIn: string,
     checkOut: string,
-  ) {
-    if (!roomTypeId || !checkIn || !checkOut) {
-      throw new BadRequestException(
-        'room_type_id, check_in, check_out are required',
-      );
+    capacity: number = 1,
+    page: number = 1,
+    limit: number = 10,
+    ) {
+    if (!checkIn || !checkOut) {
+        throw new BadRequestException('check_in, check_out are required');
     }
 
+    const offset = (page - 1) * limit;
+
     const [rows] = await this.db.execute(
-      'CALL sp_find_available_room_types(?,?,?)',
-      [roomTypeId, checkIn, checkOut],
+        'CALL sp_find_available_room_types(?,?,?,?,?,?)',
+        [roomTypeId ?? null, checkIn, checkOut, capacity, offset, limit],
     );
     return (rows as RowDataPacket[][])[0] ?? [];
-  }
+    }
 
   async create(dto: CreateBookingDto) {
     const id = uuidv4();
