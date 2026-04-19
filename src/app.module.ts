@@ -8,20 +8,19 @@ import { UsersModule } from './modules/users/users.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { SystemLogsModule } from './modules/system-logs/system-logs.module';
+import { RoomTypesModule } from './modules/room-types/room-types.module';
+import { RoomsModule } from './modules/rooms/rooms.module';
+import { BookingsModule } from './modules/bookings/bookings.module';
+import { ServicesModule } from './modules/services/services.module';
+import { CheckinModule } from './modules/checkin/checkin.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   imports: [
-    //throttler limit in 60 seconds, maximum 10 requests
     ThrottlerModule.forRoot({
-      throttlers: [
-        {
-          limit: 10,
-          ttl: 60 * 1000,
-        },
-      ],
+      throttlers: [{ limit: 10, ttl: 60 * 1000 }],
     }),
     ConfigModule.forRoot({ isGlobal: true }),
     DatabaseModule,
@@ -29,6 +28,11 @@ import { ReportsModule } from './modules/reports/reports.module';
     RolesModule,
     AuthModule,
     SystemLogsModule,
+    RoomTypesModule,
+    RoomsModule,
+    BookingsModule,
+    ServicesModule,
+    CheckinModule,
     ReportsModule,
   ],
   controllers: [AppController],
