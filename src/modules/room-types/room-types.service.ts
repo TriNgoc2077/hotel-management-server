@@ -22,7 +22,7 @@ export class RoomTypesService {
     const limit = Math.min(Number(query.limit) || 10, 100);
     const offset = (page - 1) * limit;
 
-    const [countRows] = await this.db.execute(
+    const [countRows] = await this.db.query(
       'SELECT COUNT(*) as totalItems FROM v_room_types',
     );
     const totalItems = (countRows as RowDataPacket[])[0]?.totalItems ?? 0;
@@ -35,7 +35,7 @@ export class RoomTypesService {
       };
     }
 
-    const [rows] = await this.db.execute(
+    const [rows] = await this.db.query(
       'SELECT * FROM v_room_types ORDER BY name ASC LIMIT ? OFFSET ?',
       [limit, offset],
     );

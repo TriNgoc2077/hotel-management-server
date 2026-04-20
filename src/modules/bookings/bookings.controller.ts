@@ -20,33 +20,41 @@ import { RolesGuard } from '@/modules/auth/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { Role } from '@/common/enums/role.enum';
 import { ResponseMessage } from '@/common/decorators/customize';
+import { Public } from '@/common/decorators/public.decorator';
+import { ApplyCouponDto, CreateCouponDto } from './dto/coupon.dto';
 
 @Controller('bookings')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
-  // QUAN TRỌNG — route order:
-  // Static routes ('available') PHẢI đứng trước dynamic routes (':id')
-  // Nếu đổi thứ tự, NestJS match 'available' như một :id string → findOne('available') → 404 sai
+  @Public()
+  @Get('/qr')
+  getQrPayment(@Query('amount') amount: number, @Query('description') description: string) {
+    return this.bookingsService.getPaymentQr(amount, description);
+  }
 
-  // GET /bookings/available?room_type_id=x&check_in=...&check_out=...
   @Roles(Role.ADMIN, Role.STAFF, Role.CUSTOMER)
   @ResponseMessage('Fetch available rooms successfully')
   @Get('available')
   findAvailable(
-    @Query('room_type_id') roomTypeId: string,
-    @Query('check_in') checkIn: string,
-    @Query('check_out') checkOut: string,
+    @Query('roomTypeId') roomTypeId: string,
+    @Query('checkIn') checkIn: string,
+    @Query('checkOut') checkOut: string,
+    @Query('capacity') capacity: string,
+    @Query('page') page: string,
+    @Query('limit') limit: string,
   ) {
     return this.bookingsService.findAvailableRoomTypes(
       roomTypeId,
       checkIn,
       checkOut,
+      Number(capacity) || 1,
+      Number(page) || 1,
+      Number(limit) || 10,
     );
   }
 
-  // GET /bookings?page=1&limit=10&status=Pending&customer_id=xxx
   @Roles(Role.ADMIN, Role.STAFF)
   @ResponseMessage('Fetch bookings successfully')
   @Get()
@@ -54,7 +62,6 @@ export class BookingsController {
     return this.bookingsService.findAll(query);
   }
 
-  // GET /bookings/:id
   @Roles(Role.ADMIN, Role.STAFF, Role.CUSTOMER)
   @ResponseMessage('Fetch booking successfully')
   @Get(':id')
@@ -62,7 +69,13 @@ export class BookingsController {
     return this.bookingsService.findOne(id);
   }
 
-  // POST /bookings
+  @Roles(Role.ADMIN, Role.STAFF, Role.CUSTOMER)
+  @ResponseMessage('Confirm booking successfully')
+  @Patch('confirm/:id')
+  confirm(@Param('id') id: string) {
+    return this.bookingsService.confirmBooking(id);
+  }
+
   @Roles(Role.ADMIN, Role.STAFF, Role.CUSTOMER)
   @ResponseMessage('Booking created successfully')
   @Post()
@@ -70,7 +83,6 @@ export class BookingsController {
     return this.bookingsService.create(dto);
   }
 
-  // PATCH /bookings/:id
   @Roles(Role.ADMIN, Role.STAFF)
   @ResponseMessage('Booking updated successfully')
   @Patch(':id')
@@ -78,11 +90,53 @@ export class BookingsController {
     return this.bookingsService.update(id, dto);
   }
 
-  // DELETE /bookings/:id → cancel
   @Roles(Role.ADMIN, Role.STAFF)
   @ResponseMessage('Booking cancelled successfully')
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.bookingsService.remove(id);
+  }
+
+    // PATCH /bookings/:id/check-in
+  @Roles(Role.ADMIN, Role.STAFF)
+  @Patch('check-in/:id')
+  checkIn(@Param('id') id: string) {
+    return this.bookingsService.checkIn(id);
+  }
+
+  // PATCH /bookings/:id/check-out
+  @Roles(Role.ADMIN, Role.STAFF)
+  @Patch('check-out/:id')
+  checkOut(@Param('id') id: string) {
+    return this.bookingsService.checkOut(id);
+  }
+
+    // Coupon
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @Post('/coupon')
+  createCoupon(@Body() createCouponDto: CreateCouponDto) {
+    return this.bookingsService.createCoupon(createCouponDto);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get('/coupons')
+  findAllCoupon() {
+    return this.bookingsService.findAllCoupon();
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.STAFF, Role.CUSTOMER)
+  @Post('/coupon/use')
+  applyCoupon(@Body() applyCouponDto: ApplyCouponDto) {
+    return this.bookingsService.applyCoupon(applyCouponDto);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @Delete('/coupon/:id')
+  deleteCoupon(@Param('id') id: string) {
+    return this.bookingsService.deleteCoupon(id);
   }
 }

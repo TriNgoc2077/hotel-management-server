@@ -26,7 +26,7 @@ export class RoomsService {
     let countSql = 'SELECT COUNT(*) as totalItems FROM v_rooms WHERE 1=1';
 
     if (query.room_type_id) {
-      countSql += ' AND room_type_id = ?';
+      countSql += ' AND roomTypeId = ?';
       countParams.push(query.room_type_id);
     }
     if (query.status) {
@@ -34,7 +34,7 @@ export class RoomsService {
       countParams.push(query.status);
     }
 
-    const [countRows] = await this.db.execute(countSql, countParams);
+    const [countRows] = await this.db.query(countSql, countParams);
     const totalItems = (countRows as RowDataPacket[])[0]?.totalItems ?? 0;
 
     if (totalItems > 0 && offset >= totalItems) {
@@ -47,13 +47,13 @@ export class RoomsService {
     let sql = 'SELECT * FROM v_rooms WHERE 1=1';
     const params: any[] = [...countParams];
 
-    if (query.room_type_id) sql += ' AND room_type_id = ?';
+    if (query.room_type_id) sql += ' AND roomTypeId = ?';
     if (query.status) sql += ' AND status = ?';
 
-    sql += ' ORDER BY room_number ASC LIMIT ? OFFSET ?';
+    sql += ' ORDER BY roomNumber ASC LIMIT ? OFFSET ?';
     params.push(limit, offset);
 
-    const [rows] = await this.db.execute(sql, params);
+    const [rows] = await this.db.query(sql, params);
 
     return {
       meta: { page, limit, totalPages: Math.ceil(totalItems / limit), totalItems },
