@@ -21,7 +21,7 @@ export enum BookingStatus {
 
 export class BookingServiceItemDto {
   @IsString()
-  service_id: string;
+  serviceId: string;
 
   @IsInt()
   @Min(1)
@@ -30,24 +30,24 @@ export class BookingServiceItemDto {
 
 export class CreateBookingDto {
   @IsString()
-  customer_id: string;
+  customerId: string;
 
   @IsOptional()
   @IsString()
-  staff_id?: string;
-
-  @IsDateString()
-  check_in_date: string;
-
-  @IsDateString()
-  check_out_date: string;
+  staffId?: string;
 
   @IsString()
-  room_type_id: string;
+  checkInDate: string;
+
+  @IsString()
+  checkOutDate: string;
+
+  @IsString()
+  roomTypeId: string;
 
   @IsArray()
   @IsString({ each: true })
-  room_ids: string[];
+  roomIds: string[];
 
   @IsOptional()
   @IsArray()
@@ -67,27 +67,25 @@ export class UpdateBookingDto {
   status?: BookingStatus;
 
   @IsOptional()
-  @IsDateString()
-  actual_check_in?: string;
+  actualCheckIn?: string;
 
   @IsOptional()
-  @IsDateString()
-  actual_check_out?: string;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  total_room_price?: number;
+  actualCheckOut?: string;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
-  total_service_price?: number;
+  totalRoomPrice?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
-  grand_total?: number;
+  totalServicePrice?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  grandTotal?: number;
 }
 
 export class QueryBookingDto {
@@ -109,13 +107,11 @@ export class QueryBookingDto {
 
   @IsOptional()
   @IsString()
-  customer_id?: string;
+  customerId?: string;
 
   @IsOptional()
-  @IsDateString()
-  check_in_date?: string;
+  checkInDate?: string;
 
   @IsOptional()
-  @IsDateString()
-  check_out_date?: string;
+  checkOutDate?: string;
 }

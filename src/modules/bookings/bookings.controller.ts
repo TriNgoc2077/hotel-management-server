@@ -20,19 +20,27 @@ import { RolesGuard } from '@/modules/auth/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { Role } from '@/common/enums/role.enum';
 import { ResponseMessage } from '@/common/decorators/customize';
+import { Public } from '@/common/decorators/public.decorator';
+import { ApplyCouponDto, CreateCouponDto } from './dto/coupon.dto';
 
 @Controller('bookings')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
+  @Public()
+  @Get('/qr')
+  getQrPayment(@Query('amount') amount: number, @Query('description') description: string) {
+    return this.bookingsService.getPaymentQr(amount, description);
+  }
+
   @Roles(Role.ADMIN, Role.STAFF, Role.CUSTOMER)
   @ResponseMessage('Fetch available rooms successfully')
   @Get('available')
   findAvailable(
-    @Query('room_type_id') roomTypeId: string,
-    @Query('check_in') checkIn: string,
-    @Query('check_out') checkOut: string,
+    @Query('roomTypeId') roomTypeId: string,
+    @Query('checkIn') checkIn: string,
+    @Query('checkOut') checkOut: string,
     @Query('capacity') capacity: string,
     @Query('page') page: string,
     @Query('limit') limit: string,
@@ -62,6 +70,13 @@ export class BookingsController {
   }
 
   @Roles(Role.ADMIN, Role.STAFF, Role.CUSTOMER)
+  @ResponseMessage('Confirm booking successfully')
+  @Patch('confirm/:id')
+  confirm(@Param('id') id: string) {
+    return this.bookingsService.confirmBooking(id);
+  }
+
+  @Roles(Role.ADMIN, Role.STAFF, Role.CUSTOMER)
   @ResponseMessage('Booking created successfully')
   @Post()
   create(@Body() dto: CreateBookingDto) {
@@ -80,5 +95,48 @@ export class BookingsController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.bookingsService.remove(id);
+  }
+
+    // PATCH /bookings/:id/check-in
+  @Roles(Role.ADMIN, Role.STAFF)
+  @Patch('check-in/:id')
+  checkIn(@Param('id') id: string) {
+    return this.bookingsService.checkIn(id);
+  }
+
+  // PATCH /bookings/:id/check-out
+  @Roles(Role.ADMIN, Role.STAFF)
+  @Patch('check-out/:id')
+  checkOut(@Param('id') id: string) {
+    return this.bookingsService.checkOut(id);
+  }
+
+    // Coupon
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @Post('/coupon')
+  createCoupon(@Body() createCouponDto: CreateCouponDto) {
+    return this.bookingsService.createCoupon(createCouponDto);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get('/coupons')
+  findAllCoupon() {
+    return this.bookingsService.findAllCoupon();
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.STAFF, Role.CUSTOMER)
+  @Post('/coupon/use')
+  applyCoupon(@Body() applyCouponDto: ApplyCouponDto) {
+    return this.bookingsService.applyCoupon(applyCouponDto);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @Delete('/coupon/:id')
+  deleteCoupon(@Param('id') id: string) {
+    return this.bookingsService.deleteCoupon(id);
   }
 }

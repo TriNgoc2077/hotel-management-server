@@ -8,11 +8,11 @@ export enum ReportType {
 
 export class ReportQueryDto {
   @IsOptional()
-  @IsDateString()
+
   startDate?: string;
 
   @IsOptional()
-  @IsDateString()
+
   endDate?: string;
 
   @IsOptional()

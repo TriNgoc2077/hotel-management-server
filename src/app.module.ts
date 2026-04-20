@@ -12,7 +12,6 @@ import { RoomTypesModule } from './modules/room-types/room-types.module';
 import { RoomsModule } from './modules/rooms/rooms.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
 import { ServicesModule } from './modules/services/services.module';
-import { CheckinModule } from './modules/checkin/checkin.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { ReportsModule } from './modules/reports/reports.module';
@@ -32,7 +31,6 @@ import { ReportsModule } from './modules/reports/reports.module';
     RoomsModule,
     BookingsModule,
     ServicesModule,
-    CheckinModule,
     ReportsModule,
   ],
   controllers: [AppController],
