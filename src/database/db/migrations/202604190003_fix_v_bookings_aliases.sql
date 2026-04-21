@@ -15,7 +15,7 @@ SELECT
     b.total_room_price  AS totalRoomPrice,
     b.total_service_price AS totalServicePrice,
     b.discount,
-    b.grand_total       AS grantTotal,
+    b.grand_total       AS grandTotal,
     b.deposit,
     b.status,
     b.created_at        AS createdAt,

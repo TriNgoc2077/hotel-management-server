@@ -17,6 +17,8 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { ReportsModule } from './modules/reports/reports.module';
 import { WebhookModule } from './modules/webhook/webhook.module';
 import { MailModule } from './modules/mail/mail.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { UploadModule } from './modules/upload/upload.module';
 
 @Module({
   imports: [
@@ -36,6 +38,8 @@ import { MailModule } from './modules/mail/mail.module';
     ReportsModule,
     WebhookModule,
     MailModule,
+    ScheduleModule.forRoot(),
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [

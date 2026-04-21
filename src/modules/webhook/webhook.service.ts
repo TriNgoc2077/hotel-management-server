@@ -2,8 +2,8 @@ import { Injectable, Inject, Logger, BadRequestException } from '@nestjs/common'
 import type { Pool, RowDataPacket } from 'mysql2/promise';
 import { v4 as uuidv4 } from 'uuid';
 import { SePayPayload } from './dto/sepay.payload.dto';
-import { generateInvoiceNumber } from '../utility/generation.invoice-number';
 import { MailService } from '../mail/mail.service';
+import { generateInvoiceNumber } from '@/utility/generation.invoice-number';
 
 @Injectable()
 export class WebhookService {
@@ -36,22 +36,14 @@ export class WebhookService {
         await connection.rollback();
         return;
       }
-
-      const bookingIdMatch = payload.content.match(/BK\d{5,}/i);
-      if (!bookingIdMatch) {
-         this.logger.warn(`No booking ID found in content: ${payload.content}`);
-         await connection.rollback();
-         return;
-      }
-
-      const shortId = bookingIdMatch[0].toUpperCase();
-
+      console.log(payload)
+      const shortId = payload.content.slice(payload.content.length - 6).toUpperCase();
       const [bookings] = await connection.query<RowDataPacket[]>(
         'SELECT * FROM bookings WHERE short_id = ? FOR UPDATE',
         [shortId]
       );
 
-      if (bookings.length === 0) {
+      if (!bookings[0]) {
         this.logger.warn(`Booking not found for short_id: ${shortId}`);
         await connection.rollback();
         return;
@@ -122,8 +114,19 @@ export class WebhookService {
 
       const booking = bookings[0];
       const invoiceId = uuidv4();
-      const invoiceNumber = generateInvoiceNumber();
-
+      let invoiceNumber = generateInvoiceNumber();
+      while (true) {
+        const [existingInvoice] = await connection.query<RowDataPacket[]>(
+          'SELECT * FROM invoices WHERE invoice_number = ?',
+          [invoiceNumber]
+        );
+        if (existingInvoice[0].length > 0) {
+          this.logger.warn(`Invoice already exists for invoice number: ${invoiceNumber}`);
+          invoiceNumber = generateInvoiceNumber();
+        } else {
+          break;
+        }
+      }
       await connection.query(
         `INSERT INTO invoices (id, booking_id, invoice_number, total_amount, issued_date)
          VALUES (?, ?, ?, ?, ?)`,
