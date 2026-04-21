@@ -4,6 +4,7 @@ import {
   Inject,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import type { Pool, RowDataPacket } from 'mysql2/promise';
@@ -17,12 +18,15 @@ import { PaginatedResponseDto } from '@/common/dto/response.dto';
 import { DatabaseService } from '@/database/database.service';
 import { toMysqlDatetime } from '@/common/helpers/datetime.helper';
 import { ApplyCouponDto, CreateCouponDto } from './dto/coupon.dto';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class BookingsService {
+  private readonly logger = new Logger(BookingsService.name);
   constructor(
     @Inject('DATABASE_CONNECTION') private db: Pool,
     private readonly dbService: DatabaseService,
+    private readonly mailService: MailService,
   ) {}
 
   async findAll(query: QueryBookingDto): Promise<PaginatedResponseDto<any>> {
@@ -153,6 +157,18 @@ export class BookingsService {
       dto.discount ?? 0,
     ]);
 
+    const newBooking = await this.findOne(id);
+    // Async email sending
+    this.db.query<RowDataPacket[]>('SELECT email, full_name FROM users WHERE id = ?', [dto.customerId])
+      .then(([users]) => {
+        if (users.length > 0) {
+          const user = users[0];
+          this.mailService.sendBookingCreatedMail(user.email, user.full_name, shortId, new Date(dto.checkInDate), (newBooking as any).grand_total || (newBooking as any).grantTotal);
+        }
+      })
+      .catch(err => this.logger.error('Failed to fetch user for email sending', err));
+    
+
     return { id };
   }
 
@@ -175,15 +191,15 @@ export class BookingsService {
       
       const confirmedBooking = await this.findOne(id);
       
-      // // Async email sending
-      // this.db.query<RowDataPacket[]>('SELECT email, full_name FROM users WHERE id = ?', [booking.customer_id])
-      //   .then(([users]) => {
-      //     if (users.length > 0) {
-      //       const user = users[0];
-      //       this.mailService.sendBookingConfirmedMail(user.email, user.full_name, booking.short_id, new Date(booking.check_in_date));
-      //     }
-      //   })
-      //   .catch(err => this.logger.error('Failed to fetch user for confirm email', err));
+      // Async email sending
+      this.db.query<RowDataPacket[]>('SELECT email, full_name FROM users WHERE id = ?', [booking.customer_id])
+        .then(([users]) => {
+          if (users.length > 0) {
+            const user = users[0];
+            this.mailService.sendBookingConfirmedMail(user.email, user.full_name, booking.short_id, new Date(booking.check_in_date));
+          }
+        })
+        .catch(err => this.logger.error('Failed to fetch user for confirm email', err));
 
       return confirmedBooking;
     } catch (error) {
@@ -380,6 +396,8 @@ export class BookingsService {
   }
 
   async createCoupon(createCouponDto: CreateCouponDto) {
+    const [existCp] = await this.db.query<RowDataPacket[][]>('SELECT * FROM coupons WHERE code = ? AND coupon_status = ?', [createCouponDto.code, 'Active']);
+    if (existCp[0]) throw new BadRequestException('Coupon already exists');
     const { code, discountType, discountValue, expiredAt } = createCouponDto;
     const couponId = uuidv4();
     let expiredAtDate = expiredAt ? new Date(expiredAt) : new Date(Date.now() + 2 * 7 * 24 * 60 * 60 * 1000);
@@ -396,7 +414,7 @@ export class BookingsService {
   }
 
   async findOneCoupon(id: string) {
-    const [rows] = await this.db.query<RowDataPacket[][]>('SELECT * FROM coupons WHERE id = ?', [id]);
+    const [rows] = await this.db.query<RowDataPacket[][]>('SELECT * FROM coupons WHERE id = ? AND coupon_status = ?', [id, 'Active']);
     return rows[0];
   }
 
@@ -411,7 +429,7 @@ export class BookingsService {
     if (coupon.length === 0) throw new NotFoundException('Coupon not found');
     
     const discountAmount = coupon[0].discountType === 'Percentage' ? booking[0].grantTotal * coupon[0].discountValue / 100 : coupon[0].discountValue;
-    const [rows] = await this.db.query<RowDataPacket[][]>('UPDATE bookings SET discount = ? WHERE id = ?', [discountAmount, bookingId]);
+    const [rows] = await this.db.query<RowDataPacket[][]>('CALL sp_use_coupon(?,?,?)', [bookingId, couponCode, discountAmount]);
     return rows[0];
   }
 

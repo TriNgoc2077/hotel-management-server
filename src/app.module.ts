@@ -15,6 +15,10 @@ import { ServicesModule } from './modules/services/services.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { ReportsModule } from './modules/reports/reports.module';
+import { WebhookModule } from './modules/webhook/webhook.module';
+import { MailModule } from './modules/mail/mail.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { UploadModule } from './modules/upload/upload.module';
 
 @Module({
   imports: [
@@ -32,6 +36,10 @@ import { ReportsModule } from './modules/reports/reports.module';
     BookingsModule,
     ServicesModule,
     ReportsModule,
+    WebhookModule,
+    MailModule,
+    ScheduleModule.forRoot(),
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [
