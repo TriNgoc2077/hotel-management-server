@@ -16,20 +16,22 @@ import { RolesGuard } from '@/modules/auth/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { Role } from '@/common/enums/role.enum';
 import { ResponseMessage } from '@/common/decorators/customize';
+import { Public } from '@/common/decorators/public.decorator';
 
 @Controller('rooms')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class RoomsController {
   constructor(private readonly roomsService: RoomsService) {}
 
-  @Roles(Role.ADMIN, Role.STAFF, Role.CUSTOMER)
+
+  @Public()
   @ResponseMessage('Fetch rooms successfully')
   @Get()
   findAll(@Query() query: QueryRoomDto) {
     return this.roomsService.findAll(query);
   }
 
-  @Roles(Role.ADMIN, Role.STAFF, Role.CUSTOMER)
+  @Public()
   @ResponseMessage('Fetch room successfully')
   @Get(':id')
   findOne(@Param('id') id: string) {

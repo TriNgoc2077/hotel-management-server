@@ -74,6 +74,10 @@ export class AuthService {
     return tokens;
   }
 
+  async getMe(userId: string) {
+    return this.usersService.findOne(userId);
+  }
+
   async logout(userId: string, agent: string, accessToken?: string) {
     await this.usersService.removeToken(userId, agent);
     

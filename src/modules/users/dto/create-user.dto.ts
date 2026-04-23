@@ -29,3 +29,26 @@ export class CreateUserDto {
   @IsIn(['Active', 'Locked'])
   status: string;
 }
+
+export class RegisterUserDto {
+  @IsString()
+  @MaxLength(100)
+  fullName: string;
+
+  @IsEmail()
+  @MaxLength(100)
+  email: string;
+
+  @IsString()
+  @MaxLength(255)
+  password: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(20)
+  phone?: string;
+
+  @IsString()
+  @IsOptional()
+  address?: string;
+}

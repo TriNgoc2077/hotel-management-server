@@ -20,20 +20,21 @@ import { RolesGuard } from '@/modules/auth/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { Role } from '@/common/enums/role.enum';
 import { ResponseMessage } from '@/common/decorators/customize';
+import { Public } from '@/common/decorators/public.decorator';
 
 @Controller('room-types')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class RoomTypesController {
   constructor(private readonly roomTypesService: RoomTypesService) {}
 
-  @Roles(Role.ADMIN, Role.STAFF, Role.CUSTOMER)
+  @Public()
   @ResponseMessage('Fetch room types successfully')
   @Get()
   findAll(@Query() query: QueryRoomTypeDto) {
     return this.roomTypesService.findAll(query);
   }
 
-  @Roles(Role.ADMIN, Role.STAFF, Role.CUSTOMER)
+  @Public()
   @ResponseMessage('Fetch room type successfully')
   @Get(':id')
   findOne(@Param('id') id: string) {

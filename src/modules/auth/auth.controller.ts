@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Req, Headers } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Req, Headers, Get } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
@@ -32,5 +32,11 @@ export class AuthController {
     const authHeader = req.headers.authorization;
     const accessToken = authHeader?.split(' ')[1];
     return this.authService.logout(userId, agent, accessToken);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('me')
+  async getMe(@Req() req: Request) {
+    return this.authService.getMe(req.user?.['sub']);
   }
 }
