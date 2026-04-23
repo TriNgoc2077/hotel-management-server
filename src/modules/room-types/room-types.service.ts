@@ -17,13 +17,14 @@ export class RoomTypesService {
     private readonly dbService: DatabaseService,
   ) {}
 
-  async findAll(query: QueryRoomTypeDto): Promise<PaginatedResponseDto<any>> {
+  async findAll(query: QueryRoomTypeDto, isPublic: number = 1): Promise<PaginatedResponseDto<any>> {
     const page = Number(query.page) || 1;
     const limit = Math.min(Number(query.limit) || 10, 100);
     const offset = (page - 1) * limit;
 
     const [countRows] = await this.db.query(
-      'SELECT COUNT(*) as totalItems FROM v_room_types',
+      'SELECT COUNT(*) as totalItems FROM v_room_types WHERE isPublic = ?',
+      [isPublic],
     );
     const totalItems = (countRows as RowDataPacket[])[0]?.totalItems ?? 0;
 
@@ -36,8 +37,8 @@ export class RoomTypesService {
     }
 
     const [rows] = await this.db.query(
-      'SELECT * FROM v_room_types ORDER BY name ASC LIMIT ? OFFSET ?',
-      [limit, offset],
+      'SELECT * FROM v_room_types WHERE isPublic = ? ORDER BY name ASC LIMIT ? OFFSET ?',
+      [isPublic, limit, offset],
     );
 
     return {

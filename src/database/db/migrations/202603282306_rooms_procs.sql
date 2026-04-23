@@ -61,8 +61,10 @@ SELECT
     rt.name,
     rt.description,
     rt.images,
-    rt.base_price,
-    rt.capacity
+    rt.base_price AS basePrice,
+    rt.price_per_night AS pricePerNight,
+    rt.capacity,
+    rt.is_public AS isPublic
 FROM room_types rt;
 
 DROP VIEW IF EXISTS v_rooms;

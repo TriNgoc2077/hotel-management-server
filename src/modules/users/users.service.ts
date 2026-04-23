@@ -1,5 +1,5 @@
 import { Injectable, Inject, NotFoundException, BadRequestException, OnModuleInit, Logger } from '@nestjs/common';
-import { CreateUserDto, RegisterUserDto } from './dto/create-user.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { v4 as uuidv4 } from 'uuid';
 import type { RowDataPacket, ResultSetHeader, Pool } from 'mysql2/promise';
@@ -37,30 +37,6 @@ export class UsersService implements OnModuleInit {
       }
     }
     this.pool.query('DELETE FROM blacklisted_tokens WHERE expired_at <= ?', [now]).catch(e => console.error('Cleanup DB error:', e.message));
-  }
-
-    async register(registerUserDto: RegisterUserDto) {
-    const id = uuidv4();
-    const passwordHash = await this.hashService.hashPassword(registerUserDto.password);
-    try {
-      await this.pool.query(
-        'CALL sp_create_user(?, ?, ?, ?, ?, ?, ?, ?)',
-        [
-          id,
-          RoleId.CUSTOMER,
-          registerUserDto.fullName,
-          registerUserDto.email,
-          passwordHash,
-          registerUserDto.phone || null,
-          registerUserDto.address || null,
-          UserStatus.ACTIVE,
-        ]
-      );
-      
-      return this.findOne(id);
-    } catch (error) {
-      throw new BadRequestException(`Failed to create user: ${error.message}`);
-    }
   }
 
   async create(createUserDto: CreateUserDto) {

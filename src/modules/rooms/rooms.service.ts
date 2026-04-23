@@ -17,13 +17,13 @@ export class RoomsService {
     private readonly dbService: DatabaseService,
   ) {}
 
-  async findAll(query: QueryRoomDto): Promise<PaginatedResponseDto<any>> {
+  async findAll(query: QueryRoomDto, isPublic: number = 1): Promise<PaginatedResponseDto<any>> {
     const page = Number(query.page) || 1;
     const limit = Math.min(Number(query.limit) || 10, 100);
     const offset = (page - 1) * limit;
 
-    const countParams: any[] = [];
-    let countSql = 'SELECT COUNT(*) as totalItems FROM v_rooms WHERE 1=1';
+    const countParams: any[] = [isPublic];
+    let countSql = 'SELECT COUNT(*) as totalItems FROM v_rooms WHERE isPublic = ?';
 
     if (query.room_type_id) {
       countSql += ' AND roomTypeId = ?';
@@ -44,8 +44,8 @@ export class RoomsService {
       };
     }
 
-    let sql = 'SELECT * FROM v_rooms WHERE 1=1';
-    const params: any[] = [...countParams];
+    let sql = 'SELECT * FROM v_rooms WHERE isPublic = ?';
+    const params: any[] = [isPublic];
 
     if (query.room_type_id) sql += ' AND roomTypeId = ?';
     if (query.status) sql += ' AND status = ?';

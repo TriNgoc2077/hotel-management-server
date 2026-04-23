@@ -29,9 +29,16 @@ export class RoomTypesController {
 
   @Public()
   @ResponseMessage('Fetch room types successfully')
+  @Get('public')
+  findAllPublic(@Query() query: QueryRoomTypeDto) {
+    return this.roomTypesService.findAll(query, 1);
+  }
+
+  @Roles(Role.ADMIN, Role.STAFF)
+  @ResponseMessage('Fetch room types successfully')
   @Get()
-  findAll(@Query() query: QueryRoomTypeDto) {
-    return this.roomTypesService.findAll(query);
+  findAll(@Query() query: QueryRoomTypeDto, @Query('isPublic') isPublic: number = 1) {
+    return this.roomTypesService.findAll(query, +isPublic);
   }
 
   @Public()

@@ -6,6 +6,7 @@ import { LoginDto } from './dto/login.dto';
 import { UAParser } from 'ua-parser-js';
 import { GetAgent } from 'src/common/decorators/get-ua.decorator';
 import { Public } from 'src/common/decorators/public.decorator';
+import { RegisterUserDto } from './dto/register.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -38,5 +39,11 @@ export class AuthController {
   @Get('me')
   async getMe(@Req() req: Request) {
     return this.authService.getMe(req.user?.['sub']);
+  }
+
+  @Public()
+  @Post('register')
+  register(@Body() registerUserDto: RegisterUserDto) {
+    return this.authService.register(registerUserDto);
   }
 }

@@ -1,20 +1,13 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { CreateUserDto, RegisterUserDto } from './dto/create-user.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { Role } from '@/common/enums/role.enum';
 import { RolesGuard } from '../auth/roles.guard';
-import { Public } from '@/common/decorators/public.decorator';
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
-
-  @Public()
-  @Post('register')
-  register(@Body() registerUserDto: RegisterUserDto) {
-    return this.usersService.register(registerUserDto);
-  }
   
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)

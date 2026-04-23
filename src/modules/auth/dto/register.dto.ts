@@ -1,9 +1,6 @@
-import { IsString, IsEmail, IsOptional, MaxLength, IsIn } from 'class-validator';
+import { IsString, MaxLength, IsEmail, IsOptional } from 'class-validator';
 
-export class CreateUserDto {
-  @IsString()
-  roleId: string;
-
+export class RegisterUserDto {
   @IsString()
   @MaxLength(100)
   fullName: string;
@@ -24,8 +21,4 @@ export class CreateUserDto {
   @IsString()
   @IsOptional()
   address?: string;
-
-  @IsString()
-  @IsIn(['Active', 'Locked'])
-  status: string;
 }

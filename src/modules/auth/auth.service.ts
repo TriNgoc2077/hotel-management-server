@@ -3,6 +3,9 @@ import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { HashService } from '../security/hash.service';
 import { LoginDto } from './dto/login.dto';
+import { RegisterUserDto } from './dto/register.dto';
+import { RoleId } from '@/common/enums/role.enum copy';
+import { UserStatus } from '@/common/enums/user.enum';
 
 @Injectable()
 export class AuthService {
@@ -90,5 +93,13 @@ export class AuthService {
     }
 
     return true;
+  }
+
+  async register(registerUserDto: RegisterUserDto) {
+    return this.usersService.create({
+      roleId: RoleId.CUSTOMER,
+      status: UserStatus.ACTIVE,
+      ...registerUserDto
+    });
   }
 }
