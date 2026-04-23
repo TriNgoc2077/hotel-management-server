@@ -1,0 +1,166 @@
+@startuml System Architecture - Hotel Management Server
+
+!define ICONURL https://raw.githubusercontent.com/tupadr3/plantuml-icon-font-sprites/v3.0.0/icons
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName Inter
+skinparam defaultFontSize 12
+skinparam componentStyle rectangle
+skinparam linetype ortho
+skinparam nodesep 60
+skinparam ranksep 50
+
+title **Hotel Management Server — System Architecture Diagram**\n NestJS + MySQL + AWS S3 + SMTP
+
+' ─────────────────────────────────────────
+' ACTORS
+' ─────────────────────────────────────────
+actor "Customer" as customer  #LightGreen
+actor "Staff" as staff         #LightBlue
+actor "Admin" as admin         #Salmon
+
+' ─────────────────────────────────────────
+' EXTERNAL SYSTEMS (right side)
+' ─────────────────────────────────────────
+cloud "SePay\n(Payment Gateway)" as sepay #LightYellow
+cloud "AWS S3\n(Object Storage)" as s3 #Orange
+cloud "SMTP Server\n(Gmail)" as smtp #LightCoral
+database "MySQL Database\n(Aiven Cloud)" as mysqldb #LightSkyBlue
+
+' ─────────────────────────────────────────
+' API GATEWAY / ENTRY POINT
+' ─────────────────────────────────────────
+package "NestJS Application (Port 8000)" as app {
+
+  ' ── Global Middleware Pipeline ──
+  package "Global Middleware Pipeline" as pipeline #AliceBlue {
+    component "**CORS**\nOrigin Whitelist" as cors
+    component "**Throttler**\nRate Limiter\n(10 req / 60s)" as throttler
+    component "**ValidationPipe**\nDTO Whitelist" as validation
+    component "**AllExceptionsFilter**\nGlobal Error Handler" as exceptionFilter
+    component "**TransformInterceptor**\nStandard Response Wrapper" as transformInterceptor
+    component "**LoggingInterceptor**\nAuto System Logging" as loggingInterceptor
+  }
+
+  ' ── Auth & Security Layer ──
+  package "Auth & Security Layer" as authLayer #Lavender {
+    component "**JwtAuthGuard**\n(Global Guard)" as jwtGuard
+    component "**RolesGuard**\nRBAC Enforcement" as rolesGuard
+    component "**AccessTokenStrategy**\nJWT Validation +\nBlacklist Check" as accessStrategy
+    component "**RefreshTokenStrategy**\nRefresh Token Validation" as refreshStrategy
+    component "**HashService**\nbcrypt Password\nHash/Compare" as hashService
+  }
+
+  ' ── API Controllers (Presentation Layer) ──
+  package "API Controllers (v1)" as controllers #Honeydew {
+    component "**AuthController**\n/api/v1/auth\n- POST /login\n- POST /refresh\n- POST /logout" as authCtrl
+    component "**UsersController**\n/api/v1/users\nCRUD + Token Mgmt" as usersCtrl
+    component "**RoomTypesController**\n/api/v1/room-types\nCRUD + Pagination" as roomTypesCtrl
+    component "**RoomsController**\n/api/v1/rooms\nCRUD + Pagination" as roomsCtrl
+    component "**BookingsController**\n/api/v1/bookings\nCRUD + CheckIn/Out\n+ Availability + QR\n+ Coupons" as bookingsCtrl
+    component "**ServicesController**\n/api/v1/services\nCRUD + Add-to-Booking" as servicesCtrl
+    component "**ReportsController**\n/api/v1/reports\nSummary / Revenue /\nRooms / Customers / CSV" as reportsCtrl
+    component "**UploadController**\n/api/v1/upload\nImage Upload + Room\nType Image Attach" as uploadCtrl
+    component "**SystemLogsController**\n/api/v1/system-logs\nQuery Audit Logs" as logsCtrl
+    component "**WebhookController**\n/api/v1/webhook\nSePay Payment Callback" as webhookCtrl
+  }
+
+  ' ── Business Logic (Service Layer) ──
+  package "Business Logic Layer" as services #LemonChiffon {
+    component "**AuthService**\nLogin, Logout,\nToken Generation,\nRefresh Tokens" as authSvc
+    component "**UsersService**\nUser CRUD,\nToken Blacklisting\n(In-Memory + DB)" as usersSvc
+    component "**RoomTypesService**\nRoom Type CRUD,\nTransaction-safe" as roomTypesSvc
+    component "**RoomsService**\nRoom CRUD,\nSoft Delete,\nTransaction-safe" as roomsSvc
+    component "**BookingsService**\nBooking Lifecycle:\nCreate → Confirm →\nCheckIn → CheckOut,\nCoupon Management" as bookingsSvc
+    component "**ServicesService**\nHotel Service CRUD,\nAdd-to-Booking\n(Inventory Deduction)" as servicesSvc
+    component "**ReportsService**\nRoom / Revenue /\nCustomer Stats,\nCSV Export" as reportsSvc
+    component "**UploadService**\nS3 Image Upload" as uploadSvc
+    component "**SystemLogsService**\nAudit Log CRUD" as logsSvc
+    component "**WebhookService**\nSePay Transaction\nProcessing, Payment\nRecording, Invoicing" as webhookSvc
+    component "**MailService**\nBooking Created /\nConfirmed / Cancelled /\nReminder / Payment\nReceived Emails" as mailSvc
+    component "**BookingsScheduler**\nCron Jobs (Daily 9AM):\n- Auto-cancel Pending >3d\n- Check-in Reminders" as scheduler
+  }
+
+  ' ── Data Access Layer ──
+  package "Data Access Layer" as dal #MistyRose {
+    component "**DatabaseModule**\n(Global)\nmysql2 Connection Pool\nconnectionLimit: 10" as dbModule
+    component "**DatabaseService**\nwithTransaction()\nwithTransactionIsolation()\nRow-level Locking" as dbService
+    component "**Stored Procedures**\nsp_create_booking\nsp_update_booking\nsp_create_user\nsp_find_booking_by_id\nsp_find_available_room_types\nsp_create_room\nsp_create_service\n... and more" as storedProcs
+    component "**Views**\nv_bookings, v_users,\nv_rooms, v_room_types,\nview_coupons" as views
+  }
+}
+
+' ─────────────────────────────────────────
+' RELATIONSHIPS — Actors → Controllers
+' ─────────────────────────────────────────
+customer --> pipeline : HTTPS Request
+staff --> pipeline : HTTPS Request
+admin --> pipeline : HTTPS Request
+sepay --> webhookCtrl : POST /webhook/sepay\n(API Key Auth)
+
+' ── Pipeline Flow ──
+pipeline --> jwtGuard
+jwtGuard --> rolesGuard
+rolesGuard --> controllers
+
+' ── Controller → Service ──
+authCtrl --> authSvc
+usersCtrl --> usersSvc
+roomTypesCtrl --> roomTypesSvc
+roomsCtrl --> roomsSvc
+bookingsCtrl --> bookingsSvc
+servicesCtrl --> servicesSvc
+reportsCtrl --> reportsSvc
+uploadCtrl --> uploadSvc
+uploadCtrl --> roomTypesSvc : Attach images to\nRoom Types
+logsCtrl --> logsSvc
+webhookCtrl --> webhookSvc
+
+' ── Service → Service (Cross-module) ──
+authSvc --> usersSvc : Validate User &\nManage Tokens
+authSvc --> hashService : Password Compare
+accessStrategy --> usersSvc : Blacklist Check
+bookingsSvc --> mailSvc : Async Emails\n(Create / Confirm)
+webhookSvc --> mailSvc : Payment Received\nEmail
+scheduler --> mailSvc : Reminder &\nCancellation Emails
+loggingInterceptor --> logsSvc : Auto-log All\nRequests
+
+' ── Service → Data Layer ──
+authSvc ..> dbModule : Query
+usersSvc ..> dbModule : Query / SP Calls
+roomTypesSvc ..> dbService : Transaction
+roomsSvc ..> dbService : Transaction
+bookingsSvc ..> dbService : Transaction\n(w/ Isolation)
+bookingsSvc ..> dbModule : Direct Query
+servicesSvc ..> dbService : Transaction\n(Ordered Locks)
+reportsSvc ..> dbModule : Aggregate Queries
+logsSvc ..> dbModule : Query
+webhookSvc ..> dbModule : Transaction +\nIdempotency Check
+scheduler ..> dbModule : Cron Queries
+
+' ── Data Layer → Database ──
+dbModule ==> mysqldb : mysql2 Pool\n(TCP / TLS)
+dbService --> dbModule : getConnection()
+storedProcs .up.> dbModule
+views .up.> dbModule
+
+' ── External Services ──
+uploadSvc ==> s3 : PutObjectCommand\n(AWS SDK v3)
+mailSvc ==> smtp : SMTP / TLS\n(nodemailer)
+
+' ─────────────────────────────────────────
+' LEGEND
+' ─────────────────────────────────────────
+legend right
+  |= Color |= Meaning |
+  | <#Honeydew> | Presentation Layer (Controllers) |
+  | <#LemonChiffon> | Business Logic Layer (Services) |
+  | <#MistyRose> | Data Access Layer |
+  | <#Lavender> | Auth & Security |
+  | <#AliceBlue> | Global Middleware Pipeline |
+  | <#LightSkyBlue> | External Database |
+  | <#Orange> | External Cloud Storage |
+  | <#LightCoral> | External Email Service |
+  | <#LightYellow> | External Payment Gateway |
+endlegend
+
+@enduml

@@ -8,6 +8,7 @@ import {
   Body,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import {
@@ -27,6 +28,14 @@ import { ApplyCouponDto, CreateCouponDto } from './dto/coupon.dto';
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
+
+  @UseGuards(JwtAuthGuard)
+  @Roles(Role.CUSTOMER)
+  @ResponseMessage('Fetch my bookings successfully')
+  @Get('my-bookings')
+  findMyBookings(@Req() req: any) {
+    return this.bookingsService.findMyBookings(req.user.sub);
+  }
 
   @Public()
   @Get('/qr')

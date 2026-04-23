@@ -29,6 +29,11 @@ export class BookingsService {
     private readonly mailService: MailService,
   ) {}
 
+  async findMyBookings(userId: string) {
+    const [rows] = await this.db.query<RowDataPacket[][]>('SELECT * FROM v_bookings WHERE customerId = ?', [userId]);
+    return rows[0];
+  }
+
   async findAll(query: QueryBookingDto): Promise<PaginatedResponseDto<any>> {
     const page = Number(query.page) || 1;
     const limit = Math.min(Number(query.limit) || 10, 100);
