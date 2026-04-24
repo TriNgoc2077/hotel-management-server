@@ -43,7 +43,8 @@ export class BookingsController {
     return this.bookingsService.getPaymentQr(amount, description);
   }
 
-  @Roles(Role.ADMIN, Role.STAFF, Role.CUSTOMER)
+  @Public()
+  // @Roles(Role.ADMIN, Role.STAFF, Role.CUSTOMER)  
   @ResponseMessage('Fetch available rooms successfully')
   @Get('available')
   findAvailable(
