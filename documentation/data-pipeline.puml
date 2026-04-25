@@ -1,542 +1,80 @@
-@startuml Data Pipeline - Hotel Management Server
-
-!define ICONURL https://raw.githubusercontent.com/tupadr3/plantuml-icon-font-sprites/v3.0.0/icons
-skinparam backgroundColor #FEFEFE
-skinparam defaultFontName Inter
-skinparam defaultFontSize 11
-skinparam ActivityBackgroundColor #FAFAFA
-skinparam ActivityBorderColor #555555
-skinparam ArrowColor #333333
-skinparam PartitionBackgroundColor #F0F4FF
-skinparam PartitionBorderColor #8888CC
-
-title **Hotel Management Server — Data Pipeline Diagram**\n End-to-end data flow across all major operations
-
-' ═══════════════════════════════════════════
-'  1. AUTHENTICATION & TOKEN PIPELINE
-' ═══════════════════════════════════════════
-
-start
-
-partition "**Authentication Pipeline**" #AliceBlue {
-  :Client sends **POST /api/v1/auth/login**
-with { email, password };
-
-: **Throttler** (10 req/60s) >>
-: **ValidationPipe** (whitelist DTO) >>
-: **\@Public()** bypasses JwtAuthGuard;
-
-: **AuthService.login()**;
-
-:Fetch user by email from
-**v_users** (MySQL View);
-
-: **HashService.comparePassword()**
-Compare bcrypt hash;
-
-if (Password correct?) then (yes)
-  :Generate **Access Token** (2h)
-  + **Refresh Token** (7d)
-  via **JwtService.signAsync()**;
-
-  :Store Refresh Token in **tokens** table
-  via **sp_update_refresh_token()**
-  (linked to user + user-agent);
-
-  :Return { accessToken, refreshToken };
-else (no)
-  :Throw **UnauthorizedException**;
-  stop
-endif
-
-' ── Subsequent Authenticated Requests ──
-:Client sends request with
-**Authorization: Bearer <accessToken>**;
-
-: **JwtAuthGuard** extracts token >>
-: **AccessTokenStrategy.validate()**
-Check if token is in **blacklistedTokens**
-(in-memory Map + DB);
-
-if (Token valid & not blacklisted?) then (yes)
-  :Attach user payload { sub, email, role }
-  to **request.user**;
-
-  : **RolesGuard** checks \@Roles() decorator;
-
-  if (User has required role?) then (yes)
-    :Proceed to Controller;
-  else (no)
-    :Throw **ForbiddenException**;
-    stop
-  endif
-else (no)
-  :Throw **UnauthorizedException**;
-  stop
-endif
-
-' ── Logout Pipeline ──
-:Client sends **POST /api/v1/auth/logout**;
-
-:Remove refresh token from **tokens** table
-via **sp_remove_token(userId, agent)**;
-
-:Add access token to **blacklistedTokens**
-(in-memory Map + **blacklisted_tokens** DB table)
-with expiry timestamp;
-
-:Hourly cleanup of expired blacklisted tokens
-(setInterval → Map.delete + DB DELETE);
-
-}
-
-partition "**Booking Lifecycle Pipeline**" #Honeydew {
-
-' ── Step 1: Check Availability ──
-partition "**Phase 1: Availability Check**" {
-  :Customer/Staff queries
-  **GET /api/v1/bookings/available**
-  ?roomTypeId, checkIn, checkOut, capacity;
-
-  :Call **sp_find_available_room_types()**
-  to find rooms not conflicting
-  with existing bookings;
-
-  :Return list of available room types
-  with pricing + capacity info;
-}
-
-' ── Step 2: Create Booking ──
-partition "**Phase 2: Create Booking**" {
-  :Client sends **POST /api/v1/bookings**
-  { customerId, staffId, checkInDate,
-    checkOutDate, roomTypeId,
-    roomIds[], services[]?, discount? };
-
-  :Generate **UUID** (full) + **shortId** (last 6 chars);
-
-  :Call **sp_create_booking()** with:
-  id, shortId, customerId, staffId,
-  checkInDate, checkOutDate, roomTypeId,
-  JSON(roomIds), JSON(services), discount;
-
-  note right
-    The Stored Procedure handles:
-    • INSERT into **bookings**
-    • INSERT into **booking_rooms** (each roomId)
-    • INSERT into **booking_services** (if any)
-    • Calculate **total_room_price**
-    • Status = '**Pending**'
-  end note
-
-  :Fetch created booking via
-  **sp_find_booking_by_id()**
-  (returns: booking + rooms + services);
-
-  fork
-    :Fetch customer email from **users** table;
-    : **MailService.sendBookingCreatedMail()**
-    → SMTP → Customer inbox;
-  fork again
-    :Return { id } to client;
-  end fork
-}
-
-' ── Step 3: Confirm Booking ──
-partition "**Phase 3: Confirm Booking**" {
-  :Staff sends **PATCH /api/v1/bookings/confirm/:id**;
-
-  :BEGIN TRANSACTION;
-
-  :SELECT * FROM bookings WHERE id = ? **FOR UPDATE**
-  (Row-level lock prevents concurrent confirm);
-
-  if (Status == 'Pending'?) then (yes)
-    :UPDATE bookings SET status = '**Confirmed**';
-    :COMMIT;
-
-    fork
-      : **MailService.sendBookingConfirmedMail()**;
-    fork again
-      :Return confirmed booking details;
-    end fork
-  else (no)
-    :ROLLBACK;
-    :Throw **BadRequestException**;
-    stop
-  endif
-}
-
-' ── Step 4: Check-In ──
-partition "**Phase 4: Check-In**" {
-  :Staff sends **PATCH /api/v1/bookings/check-in/:id**;
-
-  :Pre-check via **v_bookings** (no lock, fast-fail);
-
-  if (Status == 'Confirmed'?) then (yes)
-    :BEGIN TRANSACTION
-    (**DatabaseService.withTransaction()**);
-
-    :Lock: SELECT ... FOR UPDATE;
-    :Re-validate status after lock
-    (prevents race condition);
-
-    :UPDATE via **sp_update_booking()**
-    status → '**Checked-in**'
-    actual_check_in → NOW();
-
-    :COMMIT;
-    :Return { id };
-  else (no)
-    :Throw **BadRequestException**;
-    stop
-  endif
-}
-
-' ── Step 4.5: Add Services During Stay ──
-partition "**Phase 4.5: Add Services to Booking**" {
-  :Staff sends **POST /api/v1/services/booking/:bookingId**
-  { service_id, quantity };
-
-  :Pre-check: booking not Checked-out/Cancelled;
-
-  :Sort [bookingId, serviceId] alphabetically
-  for **consistent lock ordering** (deadlock prevention);
-
-  :BEGIN TRANSACTION;
-
-  :Lock both booking + service rows **in sorted order**;
-
-  :Read service price/quantity after lock
-  (ensures latest data);
-
-  if (Service active & sufficient stock?) then (yes)
-    :INSERT into **booking_services**
-    (id, booking_id, service_id, quantity, price, used_at);
-
-    if (Service has finite stock?) then (yes)
-      :UPDATE services SET quantity = quantity - N
-      Auto-deactivate if stock depleted;
-    endif
-
-    :UPDATE bookings SET
-    total_service_price = SUM(bs.price * bs.quantity)
-    grand_total = total_room_price + total_service_price;
-
-    :COMMIT;
-    :Return { id };
-  else (no)
-    :ROLLBACK;
-    :Throw **BadRequestException**;
-    stop
-  endif
-}
-
-' ── Step 5: Check-Out ──
-partition "**Phase 5: Check-Out**" {
-  :Staff sends **PATCH /api/v1/bookings/check-out/:id**;
-
-  :Pre-check via v_bookings (fast-fail);
-
-  if (Status == 'Checked-in'?) then (yes)
-    :BEGIN TRANSACTION
-    Isolation: **REPEATABLE READ**
-    (**withTransactionIsolation()**);
-
-    :Lock: SELECT ... FOR UPDATE
-    (blocks addToBooking from adding
-    services during checkout);
-
-    :Calculate final pricing AFTER lock:
-    total_room_price + SUM(service*qty)
-    = grand_total;
-
-    :UPDATE via **sp_update_booking()**
-    status → '**Checked-out**'
-    actual_check_out → NOW()
-    total_room_price, total_service_price,
-    grand_total;
-
-    :COMMIT;
-    :Return { id };
-  else (no)
-    :Throw **BadRequestException**;
-    stop
-  endif
-}
-
-}
-
-partition "**Payment & Invoice Pipeline**" #LemonChiffon {
-
-partition "**Phase A: QR Code Generation**" {
-  :Client requests **GET /api/v1/bookings/qr**
-  ?amount=X&description=Y;
-
-  :Build VietQR URL:
-  https://img.vietqr.io/image/
-  {bankId}-{accountNo}-{template}.png
-  ?amount=X&addInfo=Y&accountName=Z;
-
-  :Return QR URL to client for display;
-}
-
-partition "**Phase B: SePay Webhook Processing**" {
-  :SePay sends **POST /api/v1/webhook/sepay**
-  { id, content, transferAmount, ... }
-  with **Authorization: Bearer <API_KEY>**;
-
-  :\@Public() - no JWT required;
-  :Validate API Key from header;
-
-  :BEGIN TRANSACTION;
-
-  :Idempotency check: SELECT from **payments**
-  WHERE transaction_id = payload.id;
-
-  if (Already processed?) then (yes)
-    :ROLLBACK;
-    :Return silently (idempotent);
-    stop
-  endif
-
-  :Extract **shortId** from payload.content
-  (last 6 chars, uppercase);
-
-  :SELECT * FROM bookings WHERE
-  short_id = ? **FOR UPDATE**;
-
-  if (Booking found?) then (yes)
-    :INSERT INTO **payments**
-    (id, booking_id, amount,
-    payment_method='Bank Transfer',
-    payment_status='Completed',
-    transaction_id);
-
-    :UPDATE bookings SET
-    deposit = deposit + transferAmount;
-
-    :COMMIT;
-
-    :Read updated booking from **v_bookings**;
-
-    if (deposit + discount >= grandTotal?) then (fully paid)
-      : **WebhookService.createInvoice()**;
-      :Generate unique **invoice_number**;
-      :INSERT INTO **invoices**
-      (id, booking_id, invoice_number,
-      total_amount, issued_date);
-    endif
-
-    fork
-      : **MailService.sendPaymentReceivedMail()**
-      Include: amount paid, total paid,
-      grand total, fully paid status;
-    fork again
-      :Return updated booking;
-    end fork
-  else (no)
-    :ROLLBACK;
-    :Log warning: booking not found;
-    stop
-  endif
-}
-
-|#MistyRose|  Scheduled Tasks Pipeline  |
-
-' ═══════════════════════════════════════════
-'  4. CRON JOBS / SCHEDULED TASKS
-' ═══════════════════════════════════════════
-
-partition "**Cron: Every Day at 9 AM**" {
-
-  fork
-    ' ── Auto-Cancel Stale Pending Bookings ──
-    : **BookingsScheduler.handlePendingBookings()**;
-
-    :Query all bookings with status = '**Pending**'
-    JOIN users for contact info;
-
-    while (For each pending booking) is (next)
-      :Calculate age = NOW() - created_at;
-
-      if (Age > 3 days?) then (yes)
-        :UPDATE bookings SET
-        status = '**Cancelled**';
-
-        : **MailService.sendBookingCancelledMail()**
-        → Email: auto-cancelled notification;
-      else (no)
-        : **MailService.sendPendingReminderMail()**
-        → Email: please confirm your booking;
-      endif
-    endwhile (done)
-
-  fork again
-    ' ── Check-In Reminders for Confirmed Bookings ──
-    : **BookingsScheduler.handleCheckingReminders()**;
-
-    :Query all bookings with status = '**Confirmed**'
-    JOIN users for contact info;
-
-    while (For each confirmed booking) is (next)
-      :Calculate daysUntilCheckIn =
-      checkInDate - today;
-
-      if (1 day before?) then (yes)
-        : **MailService.sendBookingReminderMail()**
-        isFinal = true
-        → "Check-in tomorrow!";
-      elseif (Every 7 days before?) then (yes)
-        : **MailService.sendBookingReminderMail()**
-        isFinal = false
-        → "Your stay is approaching";
-      endif
-    endwhile (done)
-  end fork
-}
-
-|#Lavender|  File Upload Pipeline  |
-
-' ═══════════════════════════════════════════
-'  5. FILE UPLOAD PIPELINE
-' ═══════════════════════════════════════════
-
-partition "**Image Upload Flow**" {
-  :Admin sends **POST /api/v1/upload/images**
-  or **POST /api/v1/upload/room-type-images**
-  multipart/form-data (max 10 files, 5MB each);
-
-  : **FilesInterceptor** validates:
-  • File extension: jpg, jpeg, png only
-  • File size: max 5MB per file;
-
-  :For each file:
-  Generate **UUID** filename
-  → S3 key: images/{uuid}.{ext};
-
-  : **S3Client.send(PutObjectCommand)**
-  Upload to **AWS S3** bucket
-  (ap-southeast-1);
-
-  :Construct public URL:
-  https://{bucket}.s3.{region}.amazonaws.com/
-  images/{uuid}.{ext};
-
-  if (room-type-images endpoint?) then (yes)
-    :Fetch existing room type images
-    via **RoomTypesService.findOne()**;
-
-    :Merge: existingImages + newUrls;
-
-    :Update room type via
-    **sp_update_room_type()**
-    with JSON(mergedImages);
-  endif
-
-  :Return { urls[] };
-}
-
-|#FFEEEE|  Reporting & Analytics Pipeline  |
-
-' ═══════════════════════════════════════════
-'  6. REPORTING & ANALYTICS PIPELINE
-' ═══════════════════════════════════════════
-
-partition "**Dashboard Summary**" {
-  :Admin/Staff requests **GET /api/v1/reports/summary**
-  ?startDate, endDate, type=[day|month|year];
-
-  fork
-    : **getRoomStats()**
-    Aggregate from **bookings** + **booking_rooms**
-    + **rooms** + **room_types**;
-
-    :Output: totalBookings, cancelled,
-    completed, active, byRoomType[];
-  fork again
-    : **getRevenueStats()**
-    Aggregate from **bookings**
-    (exclude Cancelled + Pending);
-
-    :Group by period (DATE / MONTH / YEAR);
-
-    :Output: timeline[], summary
-    { totalRevenue, roomRevenue,
-    serviceRevenue, totalInvoices };
-  fork again
-    : **getCustomerStats()**
-    Aggregate from **bookings** + **users** + **roles**;
-
-    :Output: activeCustomers, newCustomers,
-    topCustomers[] (top 10 by spend);
-  end fork
-
-  :Combine all stats into unified
-  summary response;
-}
-
-partition "**CSV Export**" {
-  :Admin/Staff requests **GET /api/v1/reports/export**;
-
-  :Reuse **getRevenueStats()** query;
-
-  :Build CSV string:
-  Period, Total Revenue, Room Revenue,
-  Service Revenue, Discount;
-
-  :Set response headers:
-  Content-Type: text/csv
-  Content-Disposition: attachment;
-
-  :Stream CSV to client;
-}
-
-|#F0F0FF|  System Logging Pipeline  |
-
-' ═══════════════════════════════════════════
-'  7. SYSTEM LOGGING PIPELINE
-' ═══════════════════════════════════════════
-
-:Every HTTP request enters
-**LoggingInterceptor** (Global);
-
-fork
-  :On **SUCCESS**:
-  Log: userId, method+url,
-  IP, userAgent,
-  "SUCCESS - status: {code}";
-fork again
-  :On **ERROR**:
-  Log: userId, method+url,
-  IP, userAgent,
-  "ERROR - {error.message}";
-end fork
-
-:INSERT INTO **system_logs** via
-**SystemLogsService.create()**
-{ id(uuid), userId, action,
-ip, userAgent, description };
-
-:Admin/Staff queries logs via
-**GET /api/v1/system-logs**
-?page, limit, userId, action;
-
-:Return paginated audit trail;
-
-stop
-
-' ═══════════════════════════════════════════
-'  LEGEND
-' ═══════════════════════════════════════════
-legend right
-  |= Symbol |= Meaning |
-  | **: ** | Data transformation / processing step |
-  | **FOR UPDATE** | Row-level pessimistic lock (MySQL) |
-  | **sp_** | Stored Procedure call |
-  | **v_** | Database View |
-  | **fork** | Parallel / async execution |
-  | **Cron** | \@nestjs/schedule timed job |
-endlegend
-
+@startuml data-pipeline
+!theme plain
+skinparam responseMessageBelowArrow true
+
+title NestJS Data Pipeline - Hotel Management Server
+
+actor "Client\n(Web/Mobile)" as Client
+participant "main.ts\n(Entry Point)" as Main
+participant "AllExceptionsFilter" as Filter
+participant "JwtAuthGuard\n(Global)" as AuthGuard
+participant "TransformInterceptor\n(Global)" as Interceptor
+participant "ValidationPipe\n(Global)" as Pipe
+participant "Controller\n(e.g., RoomsController)" as Controller
+participant "Service\n(e.g., RoomsService)" as Service
+participant "TypeORM Repository" as Repository
+database "Database\n(PostgreSQL)" as DB
+
+== Request Flow ==
+
+Client -> Main : HTTP Request (API Route)
+activate Main
+
+Main -> AuthGuard : 1. Authentication Check
+activate AuthGuard
+AuthGuard --> Main : Allow / Deny
+deactivate AuthGuard
+note right of AuthGuard: Validates JWT tokens for protected routes
+
+Main -> Interceptor : 2. Intercept Request
+activate Interceptor
+Interceptor --> Main : Continue
+deactivate Interceptor
+note right of Interceptor: Can modify request or handle caching
+
+Main -> Pipe : 3. Validate & Transform Payload
+activate Pipe
+Pipe --> Main : Transformed DTO
+deactivate Pipe
+note right of Pipe: Uses class-validator to validate body/query/params
+
+Main -> Controller : 4. Route to Handler
+activate Controller
+
+Controller -> Service : 5. Execute Business Logic
+activate Service
+
+Service -> Repository : 6. Data Access
+activate Repository
+
+Repository -> DB : 7. SQL Query
+activate DB
+DB --> Repository : Result Set
+deactivate DB
+
+Repository --> Service : Entities
+deactivate Repository
+
+Service --> Controller : Processed Data
+deactivate Service
+
+Controller --> Main : Response Object
+deactivate Controller
+
+== Response Flow ==
+
+Main -> Interceptor : 8. Intercept Response
+activate Interceptor
+Interceptor --> Main : Transformed Response (e.g. Wrap in { data: ... })
+deactivate Interceptor
+note right of Interceptor: Standardizes API response format
+
+Main -> Client : 9. HTTP Response
+deactivate Main
+
+== Error Handling (Anywhere in Pipeline) ==
+note over Main, Service: If an exception is thrown at any point
+
+Filter -> Client : Intercept Exception & Format Error Response
+note right of Filter: Transforms exceptions into standard API error format
 @enduml
