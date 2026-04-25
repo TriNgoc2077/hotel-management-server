@@ -65,7 +65,7 @@ export class SystemLogsService {
   }
 
   async create(data: CreateSystemLogDto) {
-    console.log("CREATE LOG")
+    // console.log("CREATE LOG")
     try {
       const { userId, action, ip, userAgent, description } = data;
       const id = uuidv4();
