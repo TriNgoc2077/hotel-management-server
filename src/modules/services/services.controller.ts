@@ -21,6 +21,7 @@ import { RolesGuard } from '@/modules/auth/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { Role } from '@/common/enums/role.enum';
 import { ResponseMessage } from '@/common/decorators/customize';
+import { Public } from '@/common/decorators/public.decorator';
 
 @Controller('services')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -53,7 +54,7 @@ export class ServicesController {
 
   // ─── CRUD (sau các static prefix routes) ───
 
-  @Roles(Role.ADMIN, Role.STAFF, Role.CUSTOMER)
+  @Public()
   @ResponseMessage('Fetch services successfully')
   @Get()
   findAll(@Query() query: QueryServiceDto) {
