@@ -12,8 +12,8 @@ participant "TransformInterceptor\n(Global)" as Interceptor
 participant "ValidationPipe\n(Global)" as Pipe
 participant "Controller\n(e.g., RoomsController)" as Controller
 participant "Service\n(e.g., RoomsService)" as Service
-participant "TypeORM Repository" as Repository
-database "Database\n(PostgreSQL)" as DB
+participant "Repository" as Repository
+database "Database\n(MySQL)" as DB
 
 == Request Flow ==
 
@@ -73,7 +73,7 @@ Main -> Client : 9. HTTP Response
 deactivate Main
 
 == Error Handling (Anywhere in Pipeline) ==
-note over Main, Service: If an exception is thrown at any point
+note over Main, Repository: If an exception is thrown at any point
 
 Filter -> Client : Intercept Exception & Format Error Response
 note right of Filter: Transforms exceptions into standard API error format

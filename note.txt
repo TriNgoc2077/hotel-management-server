@@ -14,3 +14,5 @@ Service: F&B, Laundry, Spa, Transportation...
 Service Status: Active, Inactive
 
 ngrok http --domain=transcriptional-takisha-leonine.ngrok-free.dev 8000
+
+SHOW TRIGGERS;
