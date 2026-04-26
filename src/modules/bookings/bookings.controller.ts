@@ -29,6 +29,35 @@ import { ApplyCouponDto, CreateCouponDto } from './dto/coupon.dto';
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
+  // Coupon
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @Post('/coupon')
+  createCoupon(@Body() createCouponDto: CreateCouponDto) {
+    return this.bookingsService.createCoupon(createCouponDto);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @Get('/coupons')
+  findAllCoupon() {
+    return this.bookingsService.findAllCoupon();
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN, Role.STAFF, Role.CUSTOMER)
+  @Post('/coupon/use')
+  applyCoupon(@Body() applyCouponDto: ApplyCouponDto) {
+    return this.bookingsService.applyCoupon(applyCouponDto);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(Role.ADMIN)
+  @Delete('/coupon/:id')
+  deleteCoupon(@Param('id') id: string) {
+    return this.bookingsService.deleteCoupon(id);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Roles(Role.CUSTOMER)
   @ResponseMessage('Fetch my bookings successfully')
@@ -121,32 +150,4 @@ export class BookingsController {
     return this.bookingsService.checkOut(id);
   }
 
-    // Coupon
-  @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN)
-  @Post('/coupon')
-  createCoupon(@Body() createCouponDto: CreateCouponDto) {
-    return this.bookingsService.createCoupon(createCouponDto);
-  }
-
-  @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN)
-  @Get('/coupons')
-  findAllCoupon() {
-    return this.bookingsService.findAllCoupon();
-  }
-
-  @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN, Role.STAFF, Role.CUSTOMER)
-  @Post('/coupon/use')
-  applyCoupon(@Body() applyCouponDto: ApplyCouponDto) {
-    return this.bookingsService.applyCoupon(applyCouponDto);
-  }
-
-  @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN)
-  @Delete('/coupon/:id')
-  deleteCoupon(@Param('id') id: string) {
-    return this.bookingsService.deleteCoupon(id);
-  }
 }

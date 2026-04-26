@@ -475,7 +475,7 @@ export class BookingsService {
     const [rows] = await this.db.query<RowDataPacket[][]>(
       'SELECT * FROM coupons',
     );
-    return rows[0];
+    return rows;
   }
 
   async findOneCoupon(id: string) {
