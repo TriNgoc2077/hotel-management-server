@@ -65,7 +65,7 @@ export class WebhookService {
       await connection.commit();
       this.logger.log(`Successfully processed transaction ${payload.id} for booking ${shortId}`);
       let [newBk] = await this.pool.query<RowDataPacket[]>('SELECT * FROM v_bookings WHERE id = ?', [booking.id]);
-      const isFullyPaid = newBk[0].deposit + newBk[0].discount >= newBk[0].grantTotal;
+      const isFullyPaid = newBk[0].deposit + newBk[0].discount >= newBk[0].grandTotal;
       if (isFullyPaid) {
         await this.pool.query(
           `UPDATE bookings SET status = 'Paid' WHERE id = ?`,
@@ -88,7 +88,7 @@ export class WebhookService {
                shortId, 
                payload.transferAmount, 
                newBk[0].deposit, 
-               newBk[0].grantTotal, 
+               newBk[0].grandTotal, 
                isFullyPaid
              );
           }
@@ -136,7 +136,7 @@ export class WebhookService {
       await connection.query(
         `INSERT INTO invoices (id, booking_id, invoice_number, total_amount, issued_date)
          VALUES (?, ?, ?, ?, ?)`,
-        [invoiceId, booking.id, invoiceNumber, booking.grantTotal, new Date()]
+        [invoiceId, booking.id, invoiceNumber, booking.grandTotal, new Date()]
       );
       
     } catch (error: any) {
