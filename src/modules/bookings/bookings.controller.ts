@@ -37,8 +37,7 @@ export class BookingsController {
     return this.bookingsService.createCoupon(createCouponDto);
   }
 
-  @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN)
+  @Public()
   @Get('/coupons')
   findAllCoupon() {
     return this.bookingsService.findAllCoupon();
