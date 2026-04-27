@@ -64,9 +64,15 @@ export class WebhookService {
 
       await connection.commit();
       this.logger.log(`Successfully processed transaction ${payload.id} for booking ${shortId}`);
-      const [newBk] = await this.pool.query<RowDataPacket[]>('SELECT * FROM v_bookings WHERE id = ?', [booking.id]);
+      let [newBk] = await this.pool.query<RowDataPacket[]>('SELECT * FROM v_bookings WHERE id = ?', [booking.id]);
       const isFullyPaid = newBk[0].deposit + newBk[0].discount >= newBk[0].grantTotal;
       if (isFullyPaid) {
+        await this.pool.query(
+          `UPDATE bookings SET status = 'Paid' WHERE id = ?`,
+          [booking.id]
+        );
+        const [updatedBk] = await this.pool.query<RowDataPacket[]>('SELECT * FROM v_bookings WHERE id = ?', [booking.id]);
+        newBk = updatedBk;
         await this.createInvoice(booking.id);
       }
 

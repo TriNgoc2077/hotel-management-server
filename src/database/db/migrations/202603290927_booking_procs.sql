@@ -165,7 +165,7 @@ BEGIN
         p_booking_id, p_short_id, p_customer_id, p_staff_id, 
         p_check_in, p_check_out, 
         v_total_room_price, v_total_service_price, v_grand_total, 
-        'Pending', p_room_type_id
+        'Confirmed', p_room_type_id
     );
 
     -- Insert Booking Services mapping

@@ -5,7 +5,7 @@ Status User: Active, Looked
 Name Room Type: Standard, Deluxe, Suite
 Status Room: Vacant, Reserved, Occupied, Out_of_Order
 
-Status Booking: Pending, Confirmed, Checked-in, Checked-out, Cancelled
+Status Booking: Pending, Confirmed, Checked-in, Checked-out, Cancelled, Paid
 
 Payment Method: Cash, Credit Card, Bank Transfer
 Payment Status: Pending, Completed, Failed
