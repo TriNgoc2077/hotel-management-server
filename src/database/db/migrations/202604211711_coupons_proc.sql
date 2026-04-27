@@ -7,7 +7,7 @@ CREATE PROCEDURE sp_use_coupon(
     IN p_discount_amount DECIMAL(10, 2)
 )
 BEGIN
-    UPDATE bookings SET discount = p_discount_amount WHERE id = p_booking_id;
+    UPDATE bookings SET discount = discount + p_discount_amount WHERE id = p_booking_id;
     UPDATE coupons SET coupon_status = 'Inactive' WHERE code = p_coupon_code;
 END //
 DELIMITER ;

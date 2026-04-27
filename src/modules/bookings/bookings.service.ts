@@ -488,23 +488,20 @@ export class BookingsService {
 
   async applyCoupon(applyCouponDto: ApplyCouponDto) {
     const { bookingId, couponCode } = applyCouponDto;
-
     const [booking] = await this.db.query<RowDataPacket[]>(
-      'SELECT * FROM bookings WHERE id = ?',
+      'SELECT * FROM v_bookings WHERE id = ?',
       [bookingId],
     );
     if (booking.length === 0) throw new NotFoundException('Booking not found');
     // if (booking[0].status !== 'Pending') throw new BadRequestException('Booking is not in Pending status');
-
     const [coupon] = await this.db.query<RowDataPacket[]>(
       'SELECT * FROM view_coupons WHERE code = ?',
       [couponCode],
     );
     if (coupon.length === 0) throw new NotFoundException('Coupon not found');
-
     const discountAmount =
       coupon[0].discountType === 'Percentage'
-        ? (booking[0].grantTotal * coupon[0].discountValue) / 100
+        ? (booking[0].grandTotal * coupon[0].discountValue) / 100
         : coupon[0].discountValue;
     const [rows] = await this.db.query<RowDataPacket[][]>(
       'CALL sp_use_coupon(?,?,?)',
